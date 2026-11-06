@@ -143,24 +143,21 @@ local function stopTicker()
   if ticker then ticker:stop(); ticker = nil end
 end
 
--- Clipboard handling, which has two opposite failure modes:
---   restore blindly -> an OLD dictation keeps reappearing on the clipboard
---   never restore   -> dictating destroys whatever you had copied
--- So: restore what you had, UNLESS it was one of our own dictations.
+-- Clipboard policy: ONE predictable rule — after a dictation, the clipboard
+-- holds that dictation. Nothing is restored automatically.
+--
+-- Automatic restore was tried and removed. It caused three separate bugs: it
+-- resurrected old dictations, it ate pastes by firing before the paste landed,
+-- and it reverted the user's own copied text under them. It is a timer racing
+-- each app's paste handling, and no delay is correct for every app. Whatever
+-- you had copied is recoverable from the menu, by hand, with no race.
 local flagWatcher            -- forward declaration; defined below
-local ours, lastDictation = {}, nil
-
-local function wasOurs(text)
-  for _, t in ipairs(ours) do if t == text then return true end end
-  return false
-end
+local lastDictation, prevClipboard = nil, nil
 
 local function pasteAtCursor(text)
-  local prev = hs.pasteboard.getContents()
+  prevClipboard = hs.pasteboard.getContents()
   hs.pasteboard.setContents(text)
   lastDictation = text
-  table.insert(ours, text)
-  while #ours > 10 do table.remove(ours, 1) end
 
   -- The tap is NOT suspended here. It used to be, to stop this synthetic Cmd-V
   -- re-entering it, but that created a blind window in which real Fn presses
@@ -168,16 +165,6 @@ local function pasteAtCursor(text)
   -- The handler below is edge-triggered on the fn bit instead, so a cmd-only
   -- flag change from this keystroke is inert.
   hs.eventtap.keyStroke({ "cmd" }, "v", 0)
-
-  dictateTimers = dictateTimers or {}
-  dictateTimers.restore = hs.timer.doAfter(1.2, function()
-    -- Only hand back what you had copied if nothing has touched the clipboard
-    -- since our paste; restoring too eagerly is how a paste gets eaten.
-    if prev and prev ~= "" and not wasOurs(prev)
-       and hs.pasteboard.getContents() == text then
-      hs.pasteboard.setContents(prev)
-    end
-  end)
 end
 
 local function transcribe(path)
@@ -346,6 +333,14 @@ end
 for _, item in ipairs({
   { title = "Copy last dictation", fn = function()
       if lastDictation then hs.pasteboard.setContents(lastDictation) end
+    end },
+  { title = "Put back what I copied before", fn = function()
+      if prevClipboard and prevClipboard ~= "" then
+        hs.pasteboard.setContents(prevClipboard)
+        hs.alert.show("Clipboard restored", 1)
+      else
+        hs.alert.show("Nothing to restore", 1)
+      end
     end },
   { title = "Open today's log", fn = function()
       hs.execute("open '" .. LOGDIR .. "/" .. os.date("%Y-%m-%d") .. ".md'")

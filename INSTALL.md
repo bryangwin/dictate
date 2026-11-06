@@ -81,8 +81,13 @@ if you dictate constantly. Set `CLEANUP=0` in `config` to make it free.
 | **Double-tap Fn** | Hands-free. Keeps recording with your hands free. **Tap Fn once to stop.** Use this for anything long. |
 
 While recording, a pill appears at the bottom of the screen with a pulsing red
-dot and a timer, and the menu-bar 🎙 shows the same. The menu also has "Copy last
-dictation" and shortcuts to the logs and config.
+dot and a timer, and the menu-bar 🎙 shows the same.
+
+**About your clipboard:** dictation pastes by way of the clipboard, so after a
+dictation your clipboard holds that dictation. Nothing is put back
+automatically — that was tried and it raced each app's paste handling. If you
+had something copied, the 🎙 menu has **"Put back what I copied before"**, plus
+**"Copy last dictation"** if a paste ever lands in the wrong window.
 
 ## Your privacy
 

@@ -55,6 +55,10 @@ mid-recording, in which case it waits until you finish.
   spoken words — a refusal, an answer, a summary — it is thrown away and the raw
   Whisper text is used instead. The prompt can fail; this still catches it.
 - **Raw fallback.** Any API failure falls back to raw Whisper output.
+- **One clipboard rule.** After a dictation your clipboard holds that dictation
+  — nothing is restored automatically. If you had something copied, the 🎙 menu
+  has "Put back what I copied before". (Automatic restore was tried and removed;
+  it raced each app's paste handling and broke in three different ways.)
 - **Everything is logged** to `logs/YYYY-MM-DD.md` in this folder, with the
   raw transcript kept in an HTML comment whenever cleanup changed it. A bad paste
   never loses your words.

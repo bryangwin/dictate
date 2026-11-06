@@ -156,9 +156,12 @@ Non-obvious things that are load-bearing — do not "simplify" them away:
   which is the worst kind of bug.
 - Timers are retained on a `dictateTimers` table because anonymous Lua timers
   get garbage-collected before firing.
-- The clipboard is restored after pasting **unless** the previous contents were
-  one of our own recent dictations (tracked in `ours`). Restoring blindly
-  resurrects old dictations; never restoring destroys whatever the user copied.
+- The clipboard is **never restored automatically** after a paste, and must not
+  be. That was tried and reverted: it resurrected old dictations, it ate pastes
+  by firing before the paste landed, and it reverted the user's own copied text
+  under them. It is a timer racing each app's paste handling and no delay is
+  correct for every app. The rule is: after a dictation the clipboard holds that
+  dictation, and the menu offers "Put back what I copied before" by hand.
 - The cleanup output is accepted only if it reuses **≥55% of the spoken words**.
   This is what stops the model from pasting an answer or a refusal as the user's
   dictation. Keep it.
