@@ -24,6 +24,10 @@ MIC=":default"
 # Ignore presses shorter than this many seconds (stops accidental Fn taps).
 MIN_SECONDS=0.4
 
+# Failsafe: if a Fn release is ever missed, stop the recording after this many
+# seconds rather than hold the microphone open. 15 minutes by default.
+MAX_SECONDS=900
+
 # Floating on-screen recording indicator (1 = show the pill, 0 = menu bar only).
 OVERLAY=1
 

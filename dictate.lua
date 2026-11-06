@@ -56,10 +56,12 @@ end
 
 local MIC         = conf("MIC", ":default")
 local MIN_SECONDS = tonumber(conf("MIN_SECONDS", "0.4")) or 0.4
+local MAX_SECONDS = tonumber(conf("MAX_SECONDS", "900")) or 900
 local OVERLAY     = conf("OVERLAY", "1") == "1"
 local SOUND       = conf("SOUND", "0") == "1"
 
 local recorder, startedAt, wavPath
+local finishRecordingRef
 local locked, lastTapAt = false, 0
 local workers, ticker = {}, nil
 local menu = hs.menubar.new()
@@ -160,15 +162,20 @@ local function pasteAtCursor(text)
   table.insert(ours, text)
   while #ours > 10 do table.remove(ours, 1) end
 
-  -- Our synthetic Cmd-V generates flagsChanged events that would re-enter our
-  -- own tap. Suspend it across the keystroke.
-  if flagWatcher then flagWatcher:stop() end
+  -- The tap is NOT suspended here. It used to be, to stop this synthetic Cmd-V
+  -- re-entering it, but that created a blind window in which real Fn presses
+  -- were lost and recordings were left running with no release to stop them.
+  -- The handler below is edge-triggered on the fn bit instead, so a cmd-only
+  -- flag change from this keystroke is inert.
   hs.eventtap.keyStroke({ "cmd" }, "v", 0)
+
   dictateTimers = dictateTimers or {}
-  dictateTimers.restore = hs.timer.doAfter(0.4, function()
-    if flagWatcher and not flagWatcher:isEnabled() then flagWatcher:start() end
-    if prev and prev ~= "" and not wasOurs(prev) then
-      hs.pasteboard.setContents(prev)   -- give you back what you had copied
+  dictateTimers.restore = hs.timer.doAfter(1.2, function()
+    -- Only hand back what you had copied if nothing has touched the clipboard
+    -- since our paste; restoring too eagerly is how a paste gets eaten.
+    if prev and prev ~= "" and not wasOurs(prev)
+       and hs.pasteboard.getContents() == text then
+      hs.pasteboard.setContents(prev)
     end
   end)
 end
@@ -211,6 +218,17 @@ local function startRecording()
   startTicker()
   cue("Tink")
   dlog("record start mic=" .. MIC .. " -> " .. wavPath)
+
+  -- If a release is ever missed, stop on our own rather than hold the
+  -- microphone open indefinitely.
+  dictateTimers = dictateTimers or {}
+  dictateTimers.maxlen = hs.timer.doAfter(MAX_SECONDS, function()
+    if recorder then
+      dlog(string.format("FAILSAFE: stopping after %ds with no release", MAX_SECONDS))
+      locked = false
+      finishRecordingRef()
+    end
+  end)
 end
 
 local function discardRecording()
@@ -259,17 +277,28 @@ local function finishRecording()
   end)
 end
 
+finishRecordingRef = finishRecording
+
 -- Fn alone is the trigger. Fn with any other modifier is left to the system.
+-- This fires on EVERY modifier change, including ones our own Cmd-V generates,
+-- so act only on an actual fn transition: false->true is a press, true->false a
+-- release. Anything that does not move the fn bit is ignored.
+local fnHeld = false
 flagWatcher = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, function(e)
   local f = e:getFlags()
-  local fnAlone = f.fn and not (f.cmd or f.alt or f.ctrl or f.shift)
+  local fnNow = f.fn and true or false
+  if fnNow == fnHeld then return false end          -- not an fn transition
+  fnHeld = fnNow
+
+  local fnAlone = fnNow and not (f.cmd or f.alt or f.ctrl or f.shift)
   local now = hs.timer.secondsSinceEpoch()
 
-  if fnAlone then                                   -- Fn pressed down
+  if fnNow then                                     -- Fn pressed down
+    if not fnAlone then return false end            -- Fn+something: leave it alone
     if locked then return false end                 -- a tap to stop; act on release
     if recorder then dlog("fn down ignored: already recording") end
     startRecording()
-  elseif not f.fn then                              -- Fn released
+  else                                              -- Fn released
     if locked then
       locked = false
       dlog("hands-free stop")
