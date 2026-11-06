@@ -1,0 +1,7 @@
+# Never commit these:
+logs/
+*.wav
+*.bin
+api-key
+debug.log
+.DS_Store

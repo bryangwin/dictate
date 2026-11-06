@@ -1,0 +1,36 @@
+# dictate configuration. Plain shell assignments; edit freely.
+
+# Whisper model (whisper.cpp ggml format).
+MODEL="$HOME/.local/share/dictate/models/ggml-large-v3-turbo.bin"
+
+# Language hint. "en" is much faster and more accurate than auto-detect.
+LANG_HINT="en"
+
+# Cleanup pass: 1 = send the raw transcript to Claude for grammar/typo fixes.
+# If the API key is missing or the call fails, you still get the raw text.
+CLEANUP=1
+CLEANUP_MODEL="claude-haiku-4-5"
+
+# Strip filler words (um, uh, you know, like, I mean) during cleanup.
+REMOVE_FILLERS=1
+
+# Append every dictation to ~/.local/share/dictate/log/YYYY-MM-DD.md
+LOG=1
+
+# Microphone for ffmpeg avfoundation. ":default" follows your system input.
+# Run `dictate-mic` to list devices if you want to pin a specific one (e.g. ":2").
+MIC=":default"
+
+# Ignore presses shorter than this many seconds (stops accidental Fn taps).
+MIN_SECONDS=0.4
+
+# Floating on-screen recording indicator (1 = show the pill, 0 = menu bar only).
+OVERLAY=1
+
+# Quiet start/stop sound cue. 0 = silent.
+SOUND=0
+
+# Where dictations are written, one markdown file per day. Defaults to a
+# `logs/` folder next to these files, which is git-ignored on purpose: it is a
+# record of everything you have ever said. Uncomment to send them elsewhere.
+# LOGDIR="$HOME/Documents/dictations"

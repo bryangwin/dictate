@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# dictate-mic           - list microphones ffmpeg can see
+# dictate-mic <index>   - pin that microphone in ~/.config/dictate/config
+# dictate-mic default   - go back to following the system input device
+set -u
+CONF="$HOME/.config/dictate/config"
+
+main() {
+  if [ $# -eq 0 ]; then
+    echo "Microphones ffmpeg can see:"
+    ffmpeg -hide_banner -f avfoundation -list_devices true -i "" 2>&1 \
+      | sed -n '/audio devices/,$p' | grep -E '^\[AVFoundation.*\] \[[0-9]+\]' \
+      | sed -E 's/^\[AVFoundation[^]]*\] /  /'
+    echo
+    echo "Currently using: $(grep -E '^MIC=' "$CONF" | cut -d'"' -f2)"
+    echo "Pin one with:    dictate-mic 1     (or: dictate-mic default)"
+    exit 0
+  fi
+
+  case "$1" in
+    default) new=":default" ;;
+    [0-9]*)  new=":$1" ;;
+    *) echo "usage: dictate-mic [index|default]" >&2; exit 2 ;;
+  esac
+
+  tmp="$(mktemp)"
+  sed -E "s|^MIC=.*|MIC=\"$new\"|" "$CONF" > "$tmp" && mv "$tmp" "$CONF"
+  chmod 600 "$CONF"
+  echo "MIC set to $new — reload Hammerspoon (menu bar 🎙 → Reload) to pick it up."
+}
+
+main "$@"
