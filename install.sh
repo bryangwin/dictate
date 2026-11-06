@@ -104,8 +104,9 @@ elif [ "$CHECK_ONLY" = "1" ]; then
   todo "no API key yet (the tool still works, without cleanup)"
 elif [ ! -t 0 ]; then
   # Running non-interactively (an agent, CI, a pipe). Never block on a prompt.
-  todo "no API key, and stdin is not a terminal so I cannot ask for one."
-  todo "write it yourself: printf '%s\\n' sk-ant-... > $CFG_DIR/api-key && chmod 600 $CFG_DIR/api-key"
+  todo "no API key yet. Dictation works now; the grammar cleanup does not."
+  todo "THE USER adds it themselves, in their own terminal:   dictate-key"
+  todo "(it opens the console, takes the paste, and verifies the key)"
   todo "or set CLEANUP=0 in $DIR/config to run without the grammar pass"
 else
   # One implementation of this flow, in dictate-key: it opens the console,

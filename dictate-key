@@ -114,6 +114,10 @@ cmd_set() {
     printf '%s\n' "$KEY" > "$KEYFILE"
     chmod 600 "$KEYFILE"
     green "  Key verified and saved to $KEYFILE"
+    # Nudge Hammerspoon so the "Add API key" menu warning clears itself.
+    if pgrep -x Hammerspoon >/dev/null 2>&1; then
+      touch "$DIR/dictate.lua" 2>/dev/null || true
+    fi
     printf '\nYour next dictation will be cleaned up. Hold Fn and talk.\n\n'
     exit 0
   fi
