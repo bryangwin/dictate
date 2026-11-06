@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# dictate-key            - add or replace your Anthropic API key, and verify it
+# dictate-key --test     - check the key already saved
+# dictate-key --remove   - delete it (dictation keeps working, without cleanup)
+set -u
+
+CFG_DIR="$HOME/.config/dictate"
+KEYFILE="$CFG_DIR/api-key"
+CONSOLE="https://console.anthropic.com/settings/keys"
+
+SELF="${BASH_SOURCE[0]:-$0}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
+DIR="$(cd "$(dirname "$SELF")" && pwd -P)"
+
+green() { printf '\033[32m%s\033[0m\n' "$1"; }
+red()   { printf '\033[31m%s\033[0m\n' "$1"; }
+dim()   { printf '\033[2m%s\033[0m\n' "$1"; }
+
+verify() {
+  # Returns 0 if the key works. Costs a fraction of a cent.
+  key="$1"
+  resp="$(curl -sS --max-time 20 https://api.anthropic.com/v1/messages \
+    -H "x-api-key: $key" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "content-type: application/json" \
+    -d '{"model":"claude-haiku-4-5","max_tokens":8,
+         "messages":[{"role":"user","content":"Reply with the single word OK"}]}' 2>&1)" || {
+    red "  Could not reach api.anthropic.com. Check your internet connection."
+    return 1
+  }
+  case "$resp" in
+    *'"type":"authentication_error"'*)
+      red "  That key was rejected (authentication_error)."
+      dim  "  Copy it again from $CONSOLE — keys start with sk-ant- and are shown only once."
+      return 1 ;;
+    *'"type":"permission_error"'*)
+      red "  That key is valid but lacks permission for the Messages API."
+      return 1 ;;
+    *'credit balance is too low'*|*'"type":"billing_error"'*)
+      red "  That key works, but the account has no credit."
+      dim  "  Add credit at https://console.anthropic.com/settings/billing"
+      return 1 ;;
+    *'"type":"error"'*)
+      red "  The API returned an error:"
+      printf '%s\n' "$resp" | sed 's/^/    /' | head -4
+      return 1 ;;
+    *'"type":"message"'*)
+      return 0 ;;
+    *)
+      red "  Unexpected response:"; printf '%s\n' "$resp" | head -3 | sed 's/^/    /'
+      return 1 ;;
+  esac
+}
+
+cmd_test() {
+  if [ ! -s "$KEYFILE" ]; then
+    red "No API key saved."
+    dim "Run: dictate-key"
+    exit 1
+  fi
+  key="$(tr -d '[:space:]' < "$KEYFILE")"
+  printf 'Checking the saved key (…%s)\n' "$(printf '%s' "$key" | tail -c 6)"
+  if verify "$key"; then
+    green "  Key works. Grammar cleanup is active."
+    exit 0
+  fi
+  exit 1
+}
+
+cmd_remove() {
+  rm -f "$KEYFILE"
+  green "Key removed. Dictation still works; you now get raw Whisper output."
+  dim "Set CLEANUP=0 in $DIR/config to stop it trying at all."
+  exit 0
+}
+
+cmd_set() {
+  printf '\n\033[1mConnect your Anthropic API key\033[0m\n\n'
+  printf 'This powers the grammar/typo cleanup after each dictation.\n'
+  printf 'Dictation works without it — you just get raw Whisper output.\n\n'
+  printf '  1. Open  %s\n' "$CONSOLE"
+  printf '  2. Create Key, copy it (it is shown only once)\n'
+  printf '  3. Paste it below\n\n'
+  printf 'Cost is about $0.0012 per dictation — a few dollars a month at heavy use.\n\n'
+
+  if [ -t 0 ]; then
+    printf 'Open the console in your browser now? [Y/n] '
+    read -r yn
+    case "${yn:-y}" in [Yy]*|"") open "$CONSOLE" 2>/dev/null || true ;; esac
+    printf '\nPaste your key (or press Return to cancel):\n> '
+    read -r KEY
+  else
+    red "Not running in a terminal, so I cannot prompt."
+    dim "Write it directly:  printf '%s\\n' sk-ant-... > $KEYFILE && chmod 600 $KEYFILE"
+    exit 1
+  fi
+
+  KEY="$(printf '%s' "$KEY" | tr -d '[:space:]')"
+  [ -n "$KEY" ] || { dim "Cancelled. Nothing changed."; exit 0; }
+
+  case "$KEY" in
+    sk-ant-*) ;;
+    *) red "  That does not look like an Anthropic key (they start with sk-ant-)."
+       printf '  Save it anyway? [y/N] '; read -r yn
+       case "${yn:-n}" in [Yy]*) ;; *) dim "Cancelled."; exit 1 ;; esac ;;
+  esac
+
+  printf '\nVerifying with a real API call...\n'
+  if verify "$KEY"; then
+    mkdir -p "$CFG_DIR"
+    printf '%s\n' "$KEY" > "$KEYFILE"
+    chmod 600 "$KEYFILE"
+    green "  Key verified and saved to $KEYFILE"
+    printf '\nYour next dictation will be cleaned up. Hold Fn and talk.\n\n'
+    exit 0
+  fi
+  printf '\n'
+  red "Not saved — fix the problem above and run dictate-key again."
+  exit 1
+}
+
+case "${1:-}" in
+  --test)   cmd_test ;;
+  --remove) cmd_remove ;;
+  -h|--help)
+    printf 'dictate-key            add or replace your Anthropic API key\n'
+    printf 'dictate-key --test     check the key already saved\n'
+    printf 'dictate-key --remove   delete it\n' ;;
+  "")       cmd_set ;;
+  *)        red "unknown option: $1"; exit 2 ;;
+esac

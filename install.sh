@@ -89,8 +89,9 @@ if [ -n "$BIN" ]; then
   if [ "$CHECK_ONLY" = "0" ]; then
     ln -sfn "$DIR/dictate-transcribe" "$BIN/dictate-transcribe"
     ln -sfn "$DIR/dictate-mic"        "$BIN/dictate-mic"
+    ln -sfn "$DIR/dictate-key"        "$BIN/dictate-key"
   fi
-  ok "dictate-transcribe and dictate-mic available in $BIN"
+  ok "dictate-transcribe, dictate-mic, dictate-key available in $BIN"
 else
   todo "no writable PATH dir found; run the scripts as $DIR/dictate-transcribe"
 fi
@@ -101,17 +102,15 @@ if [ -s "$CFG_DIR/api-key" ]; then
   ok "key present at $CFG_DIR/api-key"
 elif [ "$CHECK_ONLY" = "1" ]; then
   todo "no API key yet (the tool still works, without cleanup)"
+elif [ ! -t 0 ]; then
+  # Running non-interactively (an agent, CI, a pipe). Never block on a prompt.
+  todo "no API key, and stdin is not a terminal so I cannot ask for one."
+  todo "write it yourself: printf '%s\\n' sk-ant-... > $CFG_DIR/api-key && chmod 600 $CFG_DIR/api-key"
+  todo "or set CLEANUP=0 in $DIR/config to run without the grammar pass"
 else
-  printf '  Create one at https://console.anthropic.com -> API Keys\n'
-  printf '  Paste it here (or press Return to skip): '
-  read -r KEY
-  if [ -n "$KEY" ]; then
-    printf '%s\n' "$KEY" > "$CFG_DIR/api-key"
-    chmod 600 "$CFG_DIR/api-key"
-    ok "key saved"
-  else
-    todo "skipped — set CLEANUP=0 in $DIR/config for raw transcription"
-  fi
+  # One implementation of this flow, in dictate-key: it opens the console,
+  # takes the paste, and verifies the key with a real API call before saving.
+  "$DIR/dictate-key" || todo "no key saved — run 'dictate-key' any time to add one"
 fi
 
 step "6. Free up the Fn key"

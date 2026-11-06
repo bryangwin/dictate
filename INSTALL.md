@@ -18,8 +18,8 @@ were annoying. No app to install, no subscription, no Xcode.
 - macOS (Apple silicon or Intel)
 - [Homebrew](https://brew.sh) — the installer uses it
 - ~2 GB of disk (1.5 GB of that is the speech model)
-- Optional: an Anthropic API key for the grammar pass. Without one it still
-  works, you just get raw Whisper output.
+- Optional: an Anthropic API key for the grammar pass (`dictate-key` sets it up
+  and verifies it). Without one it still works — you just get raw Whisper.
 
 ## Install
 
@@ -49,12 +49,25 @@ appends one `require("dictate")` line to your existing `init.lua`.
 3. **Log out and back in.** Frees the Fn key from macOS's emoji picker. You can
    skip it and see if Fn behaves; if the emoji panel appears, do the logout.
 
-## Getting an API key
+## The API key
 
-[console.anthropic.com](https://console.anthropic.com) → API Keys → create one,
-and the installer will ask you to paste it. It is stored at
-`~/.config/dictate/api-key` with `600` permissions, outside this folder so it
-can never be committed to git.
+`install.sh` walks you through this, and you can redo it any time:
+
+```bash
+dictate-key           # opens the console, takes your paste, verifies it
+dictate-key --test    # check the key you already have
+dictate-key --remove  # delete it
+```
+
+`dictate-key` **verifies the key with a real API call before saving it**, so a
+bad paste tells you immediately instead of silently giving you uncleaned text
+for a week. It names the actual problem — rejected key, no credit, no network.
+
+The key is stored at `~/.config/dictate/api-key`, mode `600`, deliberately
+outside this repo so it can never be committed.
+
+Forgot to set one up? The 🎙 menu shows **"⚠︎ Add API key — grammar cleanup is
+off"** until you do, and clicking it runs `dictate-key` for you.
 
 **Cost:** Claude Haiku 4.5 at $1 / $5 per million tokens. A dictation is about
 400 tokens round trip, so **roughly $0.0012 each** — a few dollars a month even

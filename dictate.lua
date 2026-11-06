@@ -21,6 +21,16 @@ local FFMPEG     = BREW .. "/bin/ffmpeg"
 local PATH_ENV   = BREW .. "/bin:/usr/bin:/bin:/usr/sbin"
 
 local ICON_IDLE, ICON_WORK, ICON_LOCK = "🎙", "⏳", "🔒"
+local KEYFILE = HOME .. "/.config/dictate/api-key"
+
+-- Cleanup silently does nothing without a key, so say so where it is visible.
+local function hasKey()
+  local f = io.open(KEYFILE, "r")
+  if not f then return false end
+  local k = f:read("*a") or ""
+  f:close()
+  return k:match("%S") ~= nil
+end
 local DOUBLE_TAP_WINDOW = 0.5
 
 local function dlog(msg)
@@ -293,10 +303,18 @@ os.execute("rm -f '" .. TMP .. "'/*.wav 2>/dev/null")
 setIcon(ICON_IDLE)
 hideOverlay()
 hs.dictateRecording = false
-menu:setMenu({
+local menuItems = {
   { title = "Hold Fn to dictate", disabled = true },
   { title = "Double-tap Fn for hands-free", disabled = true },
   { title = "-" },
+}
+if not hasKey() then
+  table.insert(menuItems, { title = "⚠︎  Add API key — grammar cleanup is off", fn = function()
+      hs.execute("open -a Terminal '" .. DIR .. "/dictate-key'")
+    end })
+  table.insert(menuItems, { title = "-" })
+end
+for _, item in ipairs({
   { title = "Copy last dictation", fn = function()
       if lastDictation then hs.pasteboard.setContents(lastDictation) end
     end },
@@ -307,7 +325,8 @@ menu:setMenu({
   { title = "Edit config", fn = function() hs.execute("open -t '" .. CONF .. "'") end },
   { title = "-" },
   { title = "Reload Hammerspoon", fn = function() hs.reload() end },
-})
+}) do table.insert(menuItems, item) end
+menu:setMenu(menuItems)
 
 -- macOS disables event taps without warning (slow callback, synthetic events,
 -- sleep/wake). Nothing else in this file matters if the tap is dead, so watch it.

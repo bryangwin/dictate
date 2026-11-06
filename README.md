@@ -20,6 +20,7 @@ insists on, which `install.sh` creates for you:
 | `hammerspoon-init.lua` | `~/.hammerspoon/init.lua` | Hammerspoon bootstrap + auto-reload |
 | `dictate-transcribe` | `~/bash_scripts/dictate-transcribe` | Whisper + Claude cleanup. WAV in, text out |
 | `dictate-mic` | `~/bash_scripts/dictate-mic` | List / pin the microphone |
+| `dictate-key` | `~/bash_scripts/dictate-key` | Add / test / remove the API key, with verification |
 | `config` | `~/.config/dictate/config` | All the knobs |
 | `prompt.md` | — | The cleanup prompt. Read fresh every dictation; edit and it takes effect on your next Fn press |
 | `logs/` | — | One markdown file per day, every dictation. **Git-ignored** |
